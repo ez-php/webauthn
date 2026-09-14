@@ -1,0 +1,48 @@
+{
+    "name": "ez-php/webauthn",
+    "version": "2.3.6",
+    "description": "WebAuthn / FIDO2 passkey authentication: registration and assertion ceremonies, attestation verification, challenge handling",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Andreas Uretschnig",
+            "email": "andreas.uretschnig@gmail.com"
+        }
+    ],
+    "keywords": ["webauthn", "fido2", "passkey", "authentication", "security", "php", "ez-php"],
+    "homepage": "https://github.com/ez-php/webauthn",
+    "support": {
+        "issues": "https://github.com/ez-php/webauthn/issues",
+        "source": "https://github.com/ez-php/webauthn"
+    },
+    "require": {
+        "php": "^8.5",
+        "ext-openssl": "*",
+        "ext-sodium": "*"
+    },
+    "require-dev": {
+        "ez-php/docker": "^2.0",
+        "phpunit/phpunit": "^13.0",
+        "phpstan/phpstan": "^2.1",
+        "friendsofphp/php-cs-fixer": "^3.94",
+        "phpstan/phpstan-strict-rules": "^2.0",
+        "phpstan/phpstan-deprecation-rules": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "EzPhp\\WebAuthn\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "cs": "php-cs-fixer fix",
+        "analyse": "phpstan analyse",
+        "test": "phpunit",
+        "full": "composer analyse && composer cs && composer test"
+    }
+}
