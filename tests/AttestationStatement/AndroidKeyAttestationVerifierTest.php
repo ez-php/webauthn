@@ -24,6 +24,12 @@ final class AndroidKeyAttestationVerifierTest extends TestCase
         $aaguid = str_repeat("\x00", 16);
         $credentialId = str_repeat("\xaa", 16);
         $credentialIdLength = pack('n', strlen($credentialId));
+        // openssl_pkey_get_details() strips a coordinate's leading zero byte
+        // rather than zero-padding to the curve's fixed field size, so it can
+        // return fewer than 32 bytes for P-256 — pad back to the fixed-length
+        // wire format a real authenticator emits (RFC 9053).
+        $x = str_pad($x, 32, "\x00", STR_PAD_LEFT);
+        $y = str_pad($y, 32, "\x00", STR_PAD_LEFT);
         $coseKey = "\xa5\x01\x02\x03\x26\x20\x01" . "\x21\x58\x20" . $x . "\x22\x58\x20" . $y;
 
         return $rpIdHash . $flags . $signCount . $aaguid . $credentialIdLength . $credentialId . $coseKey;

@@ -40,7 +40,11 @@ final class TpmAttestationVerifier implements AttestationStatementVerifierInterf
             throw new AttestationVerificationException('"tpm" attestation statement is missing required fields.');
         }
 
-        $credentialKey = AuthenticatorData::parse($authenticatorData)->credentialPublicKey;
+        try {
+            $credentialKey = AuthenticatorData::parse($authenticatorData)->credentialPublicKey;
+        } catch (\InvalidArgumentException $e) {
+            throw new AttestationVerificationException('"tpm" attestation could not parse authenticatorData: ' . $e->getMessage(), previous: $e);
+        }
 
         if ($credentialKey === null) {
             throw new AttestationVerificationException('"tpm" attestation requires attested credential data.');

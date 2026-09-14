@@ -41,7 +41,11 @@ final class AppleAttestationVerifier implements AttestationStatementVerifierInte
             throw new AttestationVerificationException('Apple attestation nonce does not match the expected attestation hash.');
         }
 
-        $credentialKey = AuthenticatorData::parse($authenticatorData)->credentialPublicKey;
+        try {
+            $credentialKey = AuthenticatorData::parse($authenticatorData)->credentialPublicKey;
+        } catch (\InvalidArgumentException $e) {
+            throw new AttestationVerificationException('"apple" attestation could not parse authenticatorData: ' . $e->getMessage(), previous: $e);
+        }
 
         if ($credentialKey === null) {
             throw new AttestationVerificationException('"apple" attestation requires attested credential data.');

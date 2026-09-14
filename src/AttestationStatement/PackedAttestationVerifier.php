@@ -56,7 +56,11 @@ final class PackedAttestationVerifier implements AttestationStatementVerifierInt
 
     private function verifySelfAttestation(int $algorithm, string $signature, string $signedData, string $authenticatorData): AttestationResult
     {
-        $credentialPublicKey = AuthenticatorData::parse($authenticatorData)->credentialPublicKey;
+        try {
+            $credentialPublicKey = AuthenticatorData::parse($authenticatorData)->credentialPublicKey;
+        } catch (\InvalidArgumentException $e) {
+            throw new AttestationVerificationException('"packed" attestation could not parse authenticatorData: ' . $e->getMessage(), previous: $e);
+        }
 
         if ($credentialPublicKey === null) {
             throw new AttestationVerificationException('Self-attestation requires attested credential data in authenticatorData.');

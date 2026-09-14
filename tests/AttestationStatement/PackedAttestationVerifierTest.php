@@ -40,6 +40,12 @@ final class PackedAttestationVerifierTest extends TestCase
         $aaguid = str_repeat("\x00", 16);
         $credentialId = str_repeat("\xaa", 16);
         $credentialIdLength = pack('n', strlen($credentialId));
+        // openssl_pkey_get_details() strips a coordinate's leading zero byte
+        // rather than zero-padding to the curve's fixed field size, so it can
+        // return fewer than 32 bytes for P-256 — pad back to the fixed-length
+        // wire format a real authenticator emits (RFC 9053).
+        $x = str_pad($x, 32, "\x00", STR_PAD_LEFT);
+        $y = str_pad($y, 32, "\x00", STR_PAD_LEFT);
         // COSE_Key map: {1: 2 (kty=EC2), 3: -7 (alg=ES256), -1: 1 (crv=P-256), -2: x, -3: y}
         $coseKey = "\xa5\x01\x02\x03\x26\x20\x01"
             . "\x21\x58\x20" . $x
@@ -123,5 +129,19 @@ final class PackedAttestationVerifierTest extends TestCase
         $this->expectException(AttestationVerificationException::class);
 
         $verifier->verify($statement, $authenticatorData, 'client-data-hash');
+    }
+
+    public function test_wraps_an_authenticator_data_parse_failure_in_self_attestation(): void
+    {
+        $verifier = new PackedAttestationVerifier($this->verifiers());
+        $statement = new AttestationStatement(fmt: 'packed', attStmt: ['alg' => -7, 'sig' => 'not-a-real-signature']);
+
+        $this->expectException(AttestationVerificationException::class);
+
+        // Too short to be valid authenticatorData (must be >= 37 bytes) —
+        // AuthenticatorData::parse() throws \InvalidArgumentException, which
+        // self-attestation must translate to this module's own exception
+        // type rather than let escape untranslated.
+        $verifier->verify($statement, 'too-short', 'client-data-hash');
     }
 }

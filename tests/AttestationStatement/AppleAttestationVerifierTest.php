@@ -24,6 +24,12 @@ final class AppleAttestationVerifierTest extends TestCase
         $aaguid = str_repeat("\x00", 16);
         $credentialId = str_repeat("\xaa", 16);
         $credentialIdLength = pack('n', strlen($credentialId));
+        // openssl_pkey_get_details() strips a coordinate's leading zero byte
+        // rather than zero-padding to the curve's fixed field size, so it can
+        // return fewer than 32 bytes for P-256 — pad back to the fixed-length
+        // wire format a real authenticator emits (RFC 9053).
+        $x = str_pad($x, 32, "\x00", STR_PAD_LEFT);
+        $y = str_pad($y, 32, "\x00", STR_PAD_LEFT);
         $coseKey = "\xa5\x01\x02\x03\x26\x20\x01" . "\x21\x58\x20" . $x . "\x22\x58\x20" . $y;
 
         return $rpIdHash . $flags . $signCount . $aaguid . $credentialIdLength . $credentialId . $coseKey;
@@ -107,5 +113,28 @@ final class AppleAttestationVerifierTest extends TestCase
         $this->expectException(AttestationVerificationException::class);
 
         $verifier->verify($statement, $authenticatorData, hash('sha256', 'client-data', true));
+    }
+
+    public function test_wraps_an_authenticator_data_parse_failure(): void
+    {
+        $keyPair = openssl_pkey_new(['curve_name' => 'prime256v1', 'private_key_type' => OPENSSL_KEYTYPE_EC]);
+        self::assertNotFalse($keyPair);
+
+        // Too short to be valid authenticatorData (must be >= 37 bytes) —
+        // AuthenticatorData::parse() throws \InvalidArgumentException, which
+        // verify() must translate to this module's own exception type rather
+        // than let escape untranslated. The nonce must still match, or the
+        // nonce check would fail first.
+        $authenticatorData = 'too-short';
+        $clientDataHash = hash('sha256', 'client-data', true);
+        $nonce = hash('sha256', $authenticatorData . $clientDataHash, true);
+        $certDer = $this->buildCredCert($keyPair, $nonce);
+
+        $verifier = new AppleAttestationVerifier();
+        $statement = new AttestationStatement(fmt: 'apple', attStmt: ['x5c' => [$certDer]]);
+
+        $this->expectException(AttestationVerificationException::class);
+
+        $verifier->verify($statement, $authenticatorData, $clientDataHash);
     }
 }

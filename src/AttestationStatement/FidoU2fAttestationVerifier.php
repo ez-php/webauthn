@@ -27,7 +27,11 @@ final class FidoU2fAttestationVerifier implements AttestationStatementVerifierIn
             throw new AttestationVerificationException('"fido-u2f" attestation statement is missing sig/x5c.');
         }
 
-        $parsed = AuthenticatorData::parse($authenticatorData);
+        try {
+            $parsed = AuthenticatorData::parse($authenticatorData);
+        } catch (\InvalidArgumentException $e) {
+            throw new AttestationVerificationException('"fido-u2f" attestation could not parse authenticatorData: ' . $e->getMessage(), previous: $e);
+        }
         $credentialPublicKey = $parsed->credentialPublicKey;
 
         if ($parsed->credentialId === null || $credentialPublicKey === null) {

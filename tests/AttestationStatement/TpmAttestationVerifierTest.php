@@ -33,6 +33,12 @@ final class TpmAttestationVerifierTest extends TestCase
         $aaguid = str_repeat("\x00", 16);
         $credentialId = str_repeat("\xaa", 16);
         $credentialIdLength = $this->packUint16(strlen($credentialId));
+        // openssl_pkey_get_details() strips a coordinate's leading zero byte
+        // rather than zero-padding to the curve's fixed field size, so it can
+        // return fewer than 32 bytes for P-256 — pad back to the fixed-length
+        // wire format a real authenticator emits (RFC 9053).
+        $x = str_pad($x, 32, "\x00", STR_PAD_LEFT);
+        $y = str_pad($y, 32, "\x00", STR_PAD_LEFT);
         $coseKey = "\xa5\x01\x02\x03\x26\x20\x01" . "\x21\x58\x20" . $x . "\x22\x58\x20" . $y;
 
         return $rpIdHash . $flags . $signCount . $aaguid . $credentialIdLength . $credentialId . $coseKey;
@@ -153,5 +159,26 @@ final class TpmAttestationVerifierTest extends TestCase
         $this->expectException(AttestationVerificationException::class);
 
         $verifier->verify($statement, $authenticatorData, hash('sha256', 'client-data', true));
+    }
+
+    public function test_wraps_an_authenticator_data_parse_failure(): void
+    {
+        $verifier = new TpmAttestationVerifier();
+        $statement = new AttestationStatement(fmt: 'tpm', attStmt: [
+            'ver' => '2.0',
+            'alg' => -7,
+            'sig' => 'irrelevant',
+            'certInfo' => 'irrelevant',
+            'pubArea' => 'irrelevant',
+            'x5c' => ['irrelevant'],
+        ]);
+
+        $this->expectException(AttestationVerificationException::class);
+
+        // Too short to be valid authenticatorData (must be >= 37 bytes) —
+        // AuthenticatorData::parse() throws \InvalidArgumentException, which
+        // verify() must translate to this module's own exception type rather
+        // than let escape untranslated.
+        $verifier->verify($statement, 'too-short', hash('sha256', 'client-data', true));
     }
 }
