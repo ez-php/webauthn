@@ -1,6 +1,6 @@
 {
     "name": "ez-php/webauthn",
-    "version": "2.4.4",
+    "version": "2.4.5",
     "description": "WebAuthn / FIDO2 passkey authentication: registration and assertion ceremonies, attestation verification, challenge handling",
     "type": "library",
     "license": "MIT",
@@ -20,6 +20,9 @@
         "php": "^8.5",
         "ext-openssl": "*",
         "ext-sodium": "*"
+    },
+    "suggest": {
+        "ez-php/contracts": "Needed for SecondFactorAssertionVerifier (EzPhp\\Contracts\\SecondFactorResult)"
     },
     "require-dev": {
         "ez-php/docker": "^2.0",
