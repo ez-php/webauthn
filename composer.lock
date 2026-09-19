@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "1a5536105686394c8d219ca0759450f8",
+    "content-hash": "38b68c66d9875c4d4d1145a19229bfda",
     "packages": [],
     "packages-dev": [
         {
@@ -407,17 +407,76 @@
             "time": "2023-08-08T05:53:35+00:00"
         },
         {
-            "name": "ez-php/docker",
-            "version": "2.4.1",
+            "name": "ez-php/contracts",
+            "version": "2.4.2",
             "source": {
                 "type": "git",
-                "url": "https://github.com/ez-php/docker.git",
-                "reference": "8fa6c799df9f0331b946041694ffd2441141ef1b"
+                "url": "https://github.com/ez-php/contracts.git",
+                "reference": "8c70626ad5389e2be855aa1a68f58c0cbe4fb5d5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ez-php/docker/zipball/8fa6c799df9f0331b946041694ffd2441141ef1b",
-                "reference": "8fa6c799df9f0331b946041694ffd2441141ef1b",
+                "url": "https://api.github.com/repos/ez-php/contracts/zipball/8c70626ad5389e2be855aa1a68f58c0cbe4fb5d5",
+                "reference": "8c70626ad5389e2be855aa1a68f58c0cbe4fb5d5",
+                "shasum": ""
+            },
+            "require": {
+                "ext-pdo": "*",
+                "ez-php/http": "^2.0",
+                "php": "^8.5"
+            },
+            "require-dev": {
+                "ez-php/docker": "^2.0",
+                "ez-php/testing-application": "^2.0",
+                "friendsofphp/php-cs-fixer": "^3.94",
+                "phpstan/phpstan": "^2.1",
+                "phpstan/phpstan-deprecation-rules": "^2.0",
+                "phpstan/phpstan-strict-rules": "^2.0",
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "EzPhp\\Contracts\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Andreas Uretschnig",
+                    "email": "andreas.uretschnig@gmail.com"
+                }
+            ],
+            "description": "Shared interfaces and abstract base classes for the ez-php framework — zero framework coupling for standalone modules",
+            "homepage": "https://github.com/ez-php/contracts",
+            "keywords": [
+                "contracts",
+                "dependency-injection",
+                "ez-php",
+                "interfaces",
+                "php"
+            ],
+            "support": {
+                "issues": "https://github.com/ez-php/contracts/issues",
+                "source": "https://github.com/ez-php/contracts"
+            },
+            "time": "2026-09-16T14:31:03+00:00"
+        },
+        {
+            "name": "ez-php/docker",
+            "version": "2.4.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/ez-php/docker.git",
+                "reference": "dad0edfc166465a598fed3d88e32e0dd774db3f8"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/ez-php/docker/zipball/dad0edfc166465a598fed3d88e32e0dd774db3f8",
+                "reference": "dad0edfc166465a598fed3d88e32e0dd774db3f8",
                 "shasum": ""
             },
             "require": {
@@ -438,9 +497,66 @@
             "description": "Docker base image source and scaffolding stubs for ez-php modules and projects",
             "support": {
                 "issues": "https://github.com/ez-php/docker/issues",
-                "source": "https://github.com/ez-php/docker/tree/v2.4.1"
+                "source": "https://github.com/ez-php/docker/tree/v2.4.2"
             },
-            "time": "2026-09-16T13:25:10+00:00"
+            "time": "2026-09-16T14:31:08+00:00"
+        },
+        {
+            "name": "ez-php/http",
+            "version": "2.4.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/ez-php/http.git",
+                "reference": "db5a0dc35c1bee2240cbf71f626925add6a045a2"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/ez-php/http/zipball/db5a0dc35c1bee2240cbf71f626925add6a045a2",
+                "reference": "db5a0dc35c1bee2240cbf71f626925add6a045a2",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.5"
+            },
+            "require-dev": {
+                "ez-php/docker": "^2.0",
+                "ez-php/testing-application": "^2.0",
+                "friendsofphp/php-cs-fixer": "^3.94",
+                "phpstan/phpstan": "^2.1",
+                "phpstan/phpstan-deprecation-rules": "^2.0",
+                "phpstan/phpstan-strict-rules": "^2.0",
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "EzPhp\\Http\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Andreas Uretschnig",
+                    "email": "andreas.uretschnig@gmail.com"
+                }
+            ],
+            "description": "HTTP message objects for the ez-php framework — immutable Request, Response, RequestFactory, and ResponseEmitter. Zero dependencies.",
+            "homepage": "https://github.com/ez-php/http",
+            "keywords": [
+                "http",
+                "php",
+                "psr",
+                "request",
+                "response"
+            ],
+            "support": {
+                "issues": "https://github.com/ez-php/http/issues",
+                "source": "https://github.com/ez-php/http"
+            },
+            "time": "2026-09-16T14:31:10+00:00"
         },
         {
             "name": "fidry/cpu-core-counter",

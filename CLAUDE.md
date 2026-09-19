@@ -268,6 +268,7 @@ src/
 ├── AuthenticatorData.php                  — parses authenticatorData (flags, counter, AAGUID, credential data)
 ├── RegistrationCeremony.php               — orchestrates registration verification
 ├── AssertionCeremony.php                  — orchestrates assertion verification
+├── SecondFactorAssertionVerifier.php      — wraps AssertionCeremony to report EzPhp\Contracts\SecondFactorResult
 ├── Cbor/
 │   └── CborDecoder.php                    — internal minimal CBOR decoder (WebAuthn-scoped, not general-purpose)
 ├── Cose/
@@ -313,6 +314,11 @@ src/
   points. Each takes plain bytes/strings the app has already extracted from
   the browser's WebAuthn JSON response, validates them, and returns a
   `PublicKeyCredentialSource` for the app to persist.
+- **`SecondFactorAssertionVerifier`** — thin adapter around `AssertionCeremony`
+  that reports its outcome as `EzPhp\Contracts\SecondFactorResult` instead of
+  a thrown exception / return value pair, so login-flow code can treat a
+  passkey assertion the same way it treats `ez-php/two-factor`'s TOTP
+  verification (see Design Decisions).
 - **`ClientDataValidator`** — shared type/challenge/origin verification used
   by both ceremonies.
 - **`AuthenticatorData`** — the single place that understands the
@@ -345,6 +351,28 @@ src/
   `ez-php/framework`. The app supplies `ChallengeStoreInterface` and
   `CredentialRepositoryInterface`; this module has no persistence or HTTP
   layer of its own.
+- **`ez-php/contracts` is a require-dev-only (soft) dependency, added solely
+  for `SecondFactorAssertionVerifier`.** PSR-4 only resolves that class when
+  something actually references it, so `src/SecondFactorAssertionVerifier.php`
+  ships without pulling `ez-php/contracts` into a standalone install that
+  never uses it — the module stays framework-agnostic per the bullet above
+  (same reasoning as `ez-php/mail`'s `Job\SendMailableJob`). This is the one
+  file in the module that references anything outside PHP/`ext-openssl`/
+  `ext-sodium`.
+- **`SecondFactorAssertionVerifier` does not merge this module with
+  `ez-php/two-factor`.** They remain mutually exclusive as documented in
+  both modules' "What Does NOT Belong Here" sections — this class only
+  adapts `AssertionCeremony`'s result to the shared, logic-free
+  `EzPhp\Contracts\SecondFactorResult` enum so application login-flow code
+  can branch on one outcome type regardless of which second factor ran.
+  `AssertionCeremony` itself is unchanged.
+- **`SecondFactorAssertionVerifier` retains the verified credential on
+  success, rather than discarding it.** `AssertionCeremony::verify()`
+  returns an updated `PublicKeyCredentialSource` (new signature counter)
+  that the caller must persist — collapsing that into a bare
+  `SecondFactorResult` would silently drop the anti-clone signature-counter
+  update. `getVerifiedCredential()` exposes it after a successful `verify()`
+  call; it is reset to `null` on failure.
 - **No network calls.** SafetyNet/Android-Key attestation chain-of-trust
   validation against a live root CA bundle is explicitly out of scope — this
   module verifies signatures are cryptographically valid for the presented
@@ -404,6 +432,7 @@ src/
   behavior for non-standard certificate extensions isn't officially
   documented.
 - No MySQL/Redis/Docker services required — pure computation, no I/O.
+- `SecondFactorAssertionVerifierTest` reuses `AssertionCeremonyTest`'s real-key-material fixture builders and asserts the same success/failure cases now report `SecondFactorResult::Satisfied`/`NotSatisfied` instead of a return value/exception pair.
 
 ---
 
@@ -414,5 +443,5 @@ src/
 | HTTP request/response handling, routing, controllers | The consuming application |
 | Session or cookie-based challenge storage | The consuming application, via `ChallengeStoreInterface` |
 | Credential persistence (database, ORM) | The consuming application, via `CredentialRepositoryInterface` |
-| TOTP / one-time-password 2FA | `ez-php/two-factor` |
+| TOTP / one-time-password 2FA | `ez-php/two-factor` — bridged only via the shared `EzPhp\Contracts\SecondFactorResult` outcome type, not merged |
 | Live attestation root-CA trust validation / metadata service lookups | Out of scope for this module entirely (no network calls) |
