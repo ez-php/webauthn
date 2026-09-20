@@ -1,6 +1,6 @@
 {
     "name": "ez-php/webauthn",
-    "version": "2.4.11",
+    "version": "2.5.0",
     "description": "WebAuthn / FIDO2 passkey authentication: registration and assertion ceremonies, attestation verification, challenge handling",
     "type": "library",
     "license": "MIT",
