@@ -24,6 +24,9 @@ final class AppleAttestationVerifier implements AttestationStatementVerifierInte
 {
     private const string NONCE_EXTENSION_OID = '1.2.840.113635.100.8.2';
 
+    /**
+     * {@inheritDoc}
+     */
     public function verify(AttestationStatement $statement, string $authenticatorData, string $clientDataHash): AttestationResult
     {
         $x5c = $statement->attStmt['x5c'] ?? null;

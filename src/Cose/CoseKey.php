@@ -25,6 +25,9 @@ final readonly class CoseKey
     ) {
     }
 
+    /**
+     * Decode a COSE key from CBOR bytes.
+     */
     public static function fromCbor(string $cborBytes): self
     {
         $decoded = CborDecoder::decode($cborBytes);

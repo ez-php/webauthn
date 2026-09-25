@@ -18,6 +18,9 @@ use EzPhp\WebAuthn\Exception\AttestationVerificationException;
  */
 final class FidoU2fAttestationVerifier implements AttestationStatementVerifierInterface
 {
+    /**
+     * {@inheritDoc}
+     */
     public function verify(AttestationStatement $statement, string $authenticatorData, string $clientDataHash): AttestationResult
     {
         $signature = $statement->attStmt['sig'] ?? null;

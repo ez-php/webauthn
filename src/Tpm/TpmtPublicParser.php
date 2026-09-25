@@ -19,6 +19,9 @@ final class TpmtPublicParser
     private const int TPM_ALG_ECC = 0x0023;
     private const int TPM_ECC_NIST_P256 = 0x0003;
 
+    /**
+     * Parse a TPMT_PUBLIC structure.
+     */
     public static function parse(string $bytes): TpmtPublicKey
     {
         $offset = 0;

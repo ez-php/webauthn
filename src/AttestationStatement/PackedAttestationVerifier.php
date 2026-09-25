@@ -31,6 +31,9 @@ final class PackedAttestationVerifier implements AttestationStatementVerifierInt
     ) {
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function verify(AttestationStatement $statement, string $authenticatorData, string $clientDataHash): AttestationResult
     {
         $algorithm = $statement->attStmt['alg'] ?? null;

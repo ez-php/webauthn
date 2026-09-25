@@ -13,5 +13,8 @@ namespace EzPhp\WebAuthn\Cose;
  */
 interface SignatureVerifierInterface
 {
+    /**
+     * Verify a signature over the signed data with the given COSE key.
+     */
     public function verify(CoseKey $key, string $signedData, string $signature): bool;
 }

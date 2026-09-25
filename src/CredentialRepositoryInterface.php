@@ -12,6 +12,9 @@ namespace EzPhp\WebAuthn;
  */
 interface CredentialRepositoryInterface
 {
+    /**
+     * Find a stored credential by its credential ID, or null when unknown.
+     */
     public function findByCredentialId(string $credentialId): ?PublicKeyCredentialSource;
 
     /**
@@ -19,5 +22,8 @@ interface CredentialRepositoryInterface
      */
     public function findByUserHandle(string $userHandle): array;
 
+    /**
+     * Persist a credential source (insert or update by credential ID).
+     */
     public function save(PublicKeyCredentialSource $source): void;
 }

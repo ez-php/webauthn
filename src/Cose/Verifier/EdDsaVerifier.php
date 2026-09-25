@@ -15,6 +15,9 @@ use EzPhp\WebAuthn\Cose\SignatureVerifierInterface;
  */
 final class EdDsaVerifier implements SignatureVerifierInterface
 {
+    /**
+     * {@inheritDoc}
+     */
     public function verify(CoseKey $key, string $signedData, string $signature): bool
     {
         $publicKey = $key->parameters[-2] ?? null;

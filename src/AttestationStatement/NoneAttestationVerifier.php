@@ -15,6 +15,9 @@ use EzPhp\WebAuthn\Exception\AttestationVerificationException;
  */
 final class NoneAttestationVerifier implements AttestationStatementVerifierInterface
 {
+    /**
+     * {@inheritDoc}
+     */
     public function verify(AttestationStatement $statement, string $authenticatorData, string $clientDataHash): AttestationResult
     {
         if ($statement->attStmt !== []) {

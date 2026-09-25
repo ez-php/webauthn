@@ -22,6 +22,9 @@ final class AttestationStatementVerifierRegistry
     ) {
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function verify(AttestationStatement $statement, string $authenticatorData, string $clientDataHash): AttestationResult
     {
         $verifier = $this->verifiersByFormat[$statement->fmt] ?? null;

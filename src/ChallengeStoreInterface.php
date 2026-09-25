@@ -12,6 +12,9 @@ namespace EzPhp\WebAuthn;
  */
 interface ChallengeStoreInterface
 {
+    /**
+     * Generate and store a fresh challenge.
+     */
     public function generate(): Challenge;
 
     /**

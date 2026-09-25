@@ -30,6 +30,9 @@ final readonly class AuthenticatorData
     ) {
     }
 
+    /**
+     * Parse raw authenticator data bytes.
+     */
     public static function parse(string $bytes): self
     {
         if (strlen($bytes) < 37) {

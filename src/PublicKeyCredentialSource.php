@@ -31,6 +31,9 @@ final readonly class PublicKeyCredentialSource
     ) {
     }
 
+    /**
+     * Return a copy with the given signature counter.
+     */
     public function withSignCount(int $signCount): self
     {
         return new self(

@@ -18,6 +18,9 @@ final class AndroidSafetynetAttestationVerifier implements AttestationStatementV
 {
     private const string EXPECTED_LEAF_CN = 'attest.android.com';
 
+    /**
+     * {@inheritDoc}
+     */
     public function verify(AttestationStatement $statement, string $authenticatorData, string $clientDataHash): AttestationResult
     {
         $response = $statement->attStmt['response'] ?? null;

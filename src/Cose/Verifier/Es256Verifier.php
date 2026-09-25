@@ -14,6 +14,9 @@ use EzPhp\WebAuthn\Cose\SignatureVerifierInterface;
  */
 final class Es256Verifier implements SignatureVerifierInterface
 {
+    /**
+     * {@inheritDoc}
+     */
     public function verify(CoseKey $key, string $signedData, string $signature): bool
     {
         $publicKey = openssl_pkey_get_public($key->toPem());

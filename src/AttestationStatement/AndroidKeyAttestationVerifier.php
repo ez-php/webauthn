@@ -22,6 +22,9 @@ final class AndroidKeyAttestationVerifier implements AttestationStatementVerifie
     private const string KEY_DESCRIPTION_OID = '1.3.6.1.4.1.11129.2.1.17';
     private const int ATTESTATION_CHALLENGE_INDEX = 4;
 
+    /**
+     * {@inheritDoc}
+     */
     public function verify(AttestationStatement $statement, string $authenticatorData, string $clientDataHash): AttestationResult
     {
         $algorithm = $statement->attStmt['alg'] ?? null;

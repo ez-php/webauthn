@@ -16,6 +16,9 @@ namespace EzPhp\WebAuthn\Tpm;
  */
 final class TpmsAttestParser
 {
+    /**
+     * Parse a TPMS_ATTEST structure.
+     */
     public static function parse(string $bytes): TpmsAttest
     {
         $offset = 0;

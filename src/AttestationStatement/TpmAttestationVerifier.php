@@ -25,6 +25,9 @@ final class TpmAttestationVerifier implements AttestationStatementVerifierInterf
     private const int TPM_ST_ATTEST_CERTIFY = 0x8017;
     private const string TPM_ALG_SHA256_ID = "\x00\x0b";
 
+    /**
+     * {@inheritDoc}
+     */
     public function verify(AttestationStatement $statement, string $authenticatorData, string $clientDataHash): AttestationResult
     {
         $ver = $statement->attStmt['ver'] ?? null;

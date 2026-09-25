@@ -23,6 +23,9 @@ final readonly class Challenge
         }
     }
 
+    /**
+     * Whether the challenge has expired at the given time.
+     */
     public function isExpired(\DateTimeImmutable $now): bool
     {
         return $now > $this->expiresAt;
