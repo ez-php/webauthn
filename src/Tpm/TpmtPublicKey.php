@@ -11,6 +11,15 @@ namespace EzPhp\WebAuthn\Tpm;
  */
 final readonly class TpmtPublicKey
 {
+    /**
+     * TpmtPublicKey Constructor
+     *
+     * @param string      $keyType
+     * @param string|null $modulus
+     * @param int|null    $exponent
+     * @param string|null $x
+     * @param string|null $y
+     */
     public function __construct(
         public string $keyType,
         public ?string $modulus,

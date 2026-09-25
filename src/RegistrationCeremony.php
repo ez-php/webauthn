@@ -18,6 +18,12 @@ use EzPhp\WebAuthn\Exception\InvalidClientDataException;
  */
 final class RegistrationCeremony
 {
+    /**
+     * RegistrationCeremony Constructor
+     *
+     * @param RelyingParty                         $relyingParty
+     * @param AttestationStatementVerifierRegistry $attestationVerifiers
+     */
     public function __construct(
         private readonly RelyingParty $relyingParty,
         private readonly AttestationStatementVerifierRegistry $attestationVerifiers,

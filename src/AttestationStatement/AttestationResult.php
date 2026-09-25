@@ -11,6 +11,12 @@ namespace EzPhp\WebAuthn\AttestationStatement;
  */
 final readonly class AttestationResult
 {
+    /**
+     * AttestationResult Constructor
+     *
+     * @param bool        $trusted
+     * @param string|null $attestationType
+     */
     public function __construct(
         public bool $trusted,
         public ?string $attestationType,

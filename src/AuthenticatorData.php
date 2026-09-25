@@ -19,6 +19,17 @@ final readonly class AuthenticatorData
     private const int FLAG_USER_VERIFIED = 0x04;
     private const int FLAG_ATTESTED_CREDENTIAL_DATA = 0x40;
 
+    /**
+     * AuthenticatorData Constructor
+     *
+     * @param string       $rpIdHash
+     * @param bool         $userPresent
+     * @param bool         $userVerified
+     * @param int          $signCount
+     * @param string|null  $aaguid
+     * @param string|null  $credentialId
+     * @param CoseKey|null $credentialPublicKey
+     */
     public function __construct(
         public string $rpIdHash,
         public bool $userPresent,

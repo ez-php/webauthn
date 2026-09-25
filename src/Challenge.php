@@ -13,6 +13,13 @@ namespace EzPhp\WebAuthn;
  */
 final readonly class Challenge
 {
+    /**
+     * Challenge Constructor
+     *
+     * @param string             $id
+     * @param string             $value
+     * @param \DateTimeImmutable $expiresAt
+     */
     public function __construct(
         public string $id,
         public string $value,

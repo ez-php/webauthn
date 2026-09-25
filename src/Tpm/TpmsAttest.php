@@ -11,6 +11,15 @@ namespace EzPhp\WebAuthn\Tpm;
  */
 final readonly class TpmsAttest
 {
+    /**
+     * TpmsAttest Constructor
+     *
+     * @param int    $magic
+     * @param int    $type
+     * @param string $extraData
+     * @param string $attestedNameAlgId
+     * @param string $attestedNameHash
+     */
     public function __construct(
         public int $magic,
         public int $type,
