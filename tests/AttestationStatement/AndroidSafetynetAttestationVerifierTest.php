@@ -24,11 +24,11 @@ final class AndroidSafetynetAttestationVerifierTest extends TestCase
     /**
      * @return array{0: string, 1: \OpenSSLAsymmetricKey}
      */
-    private function buildLeafCertificate(): array
+    private function buildLeafCertificate(string $commonName = 'attest.android.com'): array
     {
         $keyPair = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
         self::assertNotFalse($keyPair);
-        $csr = openssl_csr_new(['commonName' => 'attest.android.com'], $keyPair, ['digest_alg' => 'sha256']);
+        $csr = openssl_csr_new(['commonName' => $commonName], $keyPair, ['digest_alg' => 'sha256']);
         self::assertInstanceOf(\OpenSSLCertificateSigningRequest::class, $csr);
         $cert = openssl_csr_sign($csr, null, $keyPair, 1, ['digest_alg' => 'sha256']);
         self::assertNotFalse($cert);
@@ -95,5 +95,147 @@ final class AndroidSafetynetAttestationVerifierTest extends TestCase
         $this->expectException(AttestationVerificationException::class);
 
         $verifier->verify($statement, 'authenticator-data-bytes', hash('sha256', 'client-data', true));
+    }
+
+    /**
+     * A JWS compact serialization: base64url(header).base64url(payload).base64url(signature).
+     *
+     * @param array<string, mixed>|string $header  Array → JSON-encoded; string → used as the raw segment
+     * @param array<string, mixed>|string $payload Array → JSON-encoded; string → used as the raw segment
+     */
+    private function jws(array|string $header, array|string $payload, \OpenSSLAsymmetricKey $signingKey): string
+    {
+        $headerB64 = is_array($header) ? $this->base64Url((string) json_encode($header)) : $header;
+        $payloadB64 = is_array($payload) ? $this->base64Url((string) json_encode($payload)) : $payload;
+        openssl_sign($headerB64 . '.' . $payloadB64, $signature, $signingKey, OPENSSL_ALGO_SHA256);
+
+        return $headerB64 . '.' . $payloadB64 . '.' . $this->base64Url($signature);
+    }
+
+    /**
+     * @param array<string, mixed> $attStmt
+     */
+    private function verifyStatement(array $attStmt): void
+    {
+        (new AndroidSafetynetAttestationVerifier())->verify(
+            new AttestationStatement(fmt: 'android-safetynet', attStmt: $attStmt),
+            'authenticator-data-bytes',
+            hash('sha256', 'client-data', true),
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validPayload(): array
+    {
+        return ['nonce' => base64_encode(hash('sha256', 'authenticator-data-bytes' . hash('sha256', 'client-data', true), true))];
+    }
+
+    public function test_rejects_a_statement_without_response(): void
+    {
+        $this->expectException(AttestationVerificationException::class);
+        $this->expectExceptionMessage('missing response');
+
+        $this->verifyStatement(['ver' => '1']);
+    }
+
+    public function test_rejects_a_non_rs256_algorithm(): void
+    {
+        [$certDer, $keyPair] = $this->buildLeafCertificate();
+
+        $this->expectException(AttestationVerificationException::class);
+        $this->expectExceptionMessage('Unsupported or missing SafetyNet JWS algorithm');
+
+        $this->verifyStatement(['response' => $this->jws(['alg' => 'HS256', 'x5c' => [base64_encode($certDer)]], $this->validPayload(), $keyPair)]);
+    }
+
+    public function test_rejects_a_header_without_x5c(): void
+    {
+        [, $keyPair] = $this->buildLeafCertificate();
+
+        $this->expectException(AttestationVerificationException::class);
+        $this->expectExceptionMessage('missing x5c');
+
+        $this->verifyStatement(['response' => $this->jws(['alg' => 'RS256'], $this->validPayload(), $keyPair)]);
+    }
+
+    public function test_rejects_an_x5c_entry_that_is_not_base64(): void
+    {
+        [, $keyPair] = $this->buildLeafCertificate();
+
+        $this->expectException(AttestationVerificationException::class);
+        $this->expectExceptionMessage('x5c is not valid base64');
+
+        $this->verifyStatement(['response' => $this->jws(['alg' => 'RS256', 'x5c' => ['not base64!!']], $this->validPayload(), $keyPair)]);
+    }
+
+    public function test_rejects_an_unreadable_leaf_certificate(): void
+    {
+        [, $keyPair] = $this->buildLeafCertificate();
+
+        $this->expectException(AttestationVerificationException::class);
+        $this->expectExceptionMessage("leaf certificate's public key");
+
+        $this->verifyStatement(['response' => $this->jws(['alg' => 'RS256', 'x5c' => [base64_encode('not a certificate')]], $this->validPayload(), $keyPair)]);
+    }
+
+    public function test_rejects_a_leaf_certificate_for_another_host(): void
+    {
+        [$certDer, $keyPair] = $this->buildLeafCertificate('attest.example.com');
+
+        $this->expectException(AttestationVerificationException::class);
+        $this->expectExceptionMessage('CN does not match attest.android.com');
+
+        $this->verifyStatement(['response' => $this->jws(['alg' => 'RS256', 'x5c' => [base64_encode($certDer)]], $this->validPayload(), $keyPair)]);
+    }
+
+    public function test_rejects_a_signature_from_another_key(): void
+    {
+        [$certDer] = $this->buildLeafCertificate();
+        [, $otherKey] = $this->buildLeafCertificate();
+
+        $this->expectException(AttestationVerificationException::class);
+        $this->expectExceptionMessage('JWS signature verification failed');
+
+        $this->verifyStatement(['response' => $this->jws(['alg' => 'RS256', 'x5c' => [base64_encode($certDer)]], $this->validPayload(), $otherKey)]);
+    }
+
+    public function test_rejects_a_segment_that_is_not_json(): void
+    {
+        [, $keyPair] = $this->buildLeafCertificate();
+
+        $this->expectException(AttestationVerificationException::class);
+        $this->expectExceptionMessage('not valid JSON');
+
+        $this->verifyStatement(['response' => $this->jws($this->base64Url('{not json'), $this->validPayload(), $keyPair)]);
+    }
+
+    public function test_rejects_a_segment_that_decodes_to_a_scalar(): void
+    {
+        [, $keyPair] = $this->buildLeafCertificate();
+
+        $this->expectException(AttestationVerificationException::class);
+        $this->expectExceptionMessage('must decode to an object');
+
+        $this->verifyStatement(['response' => $this->jws($this->base64Url('"just a string"'), $this->validPayload(), $keyPair)]);
+    }
+
+    public function test_rejects_a_segment_that_decodes_to_a_list(): void
+    {
+        [, $keyPair] = $this->buildLeafCertificate();
+
+        $this->expectException(AttestationVerificationException::class);
+        $this->expectExceptionMessage('must decode to an object');
+
+        $this->verifyStatement(['response' => $this->jws(['alg' => 'RS256'], $this->base64Url('[1,2,3]'), $keyPair)]);
+    }
+
+    public function test_rejects_a_segment_that_is_not_base64url(): void
+    {
+        $this->expectException(AttestationVerificationException::class);
+        $this->expectExceptionMessage('not valid base64url');
+
+        $this->verifyStatement(['response' => 'a!b.c.d']);
     }
 }

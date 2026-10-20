@@ -144,4 +144,152 @@ final class PackedAttestationVerifierTest extends TestCase
         // type rather than let escape untranslated.
         $verifier->verify($statement, 'too-short', 'client-data-hash');
     }
+
+    /**
+     * A self-signed certificate (DER) for a fresh key pair of the given type.
+     *
+     * @return array{\OpenSSLAsymmetricKey, string}
+     */
+    private function certificate(int $keyType = OPENSSL_KEYTYPE_EC): array
+    {
+        $options = $keyType === OPENSSL_KEYTYPE_RSA
+            ? ['private_key_type' => OPENSSL_KEYTYPE_RSA, 'private_key_bits' => 2048]
+            : ['curve_name' => 'prime256v1', 'private_key_type' => OPENSSL_KEYTYPE_EC];
+        $keyPair = openssl_pkey_new($options);
+        self::assertNotFalse($keyPair);
+        $csr = openssl_csr_new(['commonName' => 'Test Authenticator'], $keyPair, ['digest_alg' => 'sha256']);
+        self::assertInstanceOf(\OpenSSLCertificateSigningRequest::class, $csr);
+        $cert = openssl_csr_sign($csr, null, $keyPair, 1, ['digest_alg' => 'sha256']);
+        self::assertNotFalse($cert);
+        openssl_x509_export($cert, $certPem);
+        self::assertIsString($certPem);
+        $der = base64_decode(str_replace(['-----BEGIN CERTIFICATE-----', '-----END CERTIFICATE-----', "\n"], '', $certPem), strict: true);
+        self::assertIsString($der);
+
+        return [$keyPair, $der];
+    }
+
+    private function ecAuthenticatorData(): string
+    {
+        return $this->authenticatorDataWithCredential(str_repeat("\x01", 32), str_repeat("\x02", 32));
+    }
+
+    public function test_verifies_rs256_full_attestation(): void
+    {
+        [$keyPair, $der] = $this->certificate(OPENSSL_KEYTYPE_RSA);
+        $authenticatorData = $this->ecAuthenticatorData();
+        openssl_sign($authenticatorData . 'client-data-hash', $signature, $keyPair, OPENSSL_ALGO_SHA256);
+
+        $result = (new PackedAttestationVerifier($this->verifiers()))->verify(
+            new AttestationStatement(fmt: 'packed', attStmt: ['alg' => -257, 'sig' => $signature, 'x5c' => [$der]]),
+            $authenticatorData,
+            'client-data-hash',
+        );
+
+        self::assertSame('basic', $result->attestationType);
+        self::assertTrue($result->trusted);
+    }
+
+    public function test_rejects_a_statement_without_alg_or_sig(): void
+    {
+        $this->expectException(AttestationVerificationException::class);
+        $this->expectExceptionMessage('missing alg/sig');
+
+        (new PackedAttestationVerifier($this->verifiers()))->verify(
+            new AttestationStatement(fmt: 'packed', attStmt: ['alg' => '-7', 'sig' => 'x']),
+            $this->ecAuthenticatorData(),
+            'client-data-hash',
+        );
+    }
+
+    public function test_rejects_an_invalid_x5c(): void
+    {
+        $this->expectException(AttestationVerificationException::class);
+        $this->expectExceptionMessage('invalid x5c');
+
+        (new PackedAttestationVerifier($this->verifiers()))->verify(
+            new AttestationStatement(fmt: 'packed', attStmt: ['alg' => -7, 'sig' => 'x', 'x5c' => 'not-a-list']),
+            $this->ecAuthenticatorData(),
+            'client-data-hash',
+        );
+    }
+
+    public function test_rejects_self_attestation_without_attested_credential_data(): void
+    {
+        $authenticatorData = hash('sha256', 'example.com', true) . "\x01" . "\x00\x00\x00\x01";
+
+        $this->expectException(AttestationVerificationException::class);
+        $this->expectExceptionMessage('requires attested credential data');
+
+        (new PackedAttestationVerifier($this->verifiers()))->verify(
+            new AttestationStatement(fmt: 'packed', attStmt: ['alg' => -7, 'sig' => 'x']),
+            $authenticatorData,
+            'client-data-hash',
+        );
+    }
+
+    public function test_rejects_self_attestation_with_a_different_algorithm_than_the_credential(): void
+    {
+        $this->expectException(AttestationVerificationException::class);
+        $this->expectExceptionMessage("does not match the credential's own algorithm");
+
+        (new PackedAttestationVerifier($this->verifiers()))->verify(
+            new AttestationStatement(fmt: 'packed', attStmt: ['alg' => -257, 'sig' => 'x']),
+            $this->ecAuthenticatorData(),
+            'client-data-hash',
+        );
+    }
+
+    public function test_rejects_self_attestation_without_a_registered_verifier(): void
+    {
+        $this->expectException(AttestationVerificationException::class);
+        $this->expectExceptionMessage('No signature verifier registered for COSE algorithm -7');
+
+        (new PackedAttestationVerifier([]))->verify(
+            new AttestationStatement(fmt: 'packed', attStmt: ['alg' => -7, 'sig' => 'x']),
+            $this->ecAuthenticatorData(),
+            'client-data-hash',
+        );
+    }
+
+    public function test_rejects_an_unreadable_leaf_certificate(): void
+    {
+        $this->expectException(AttestationVerificationException::class);
+        $this->expectExceptionMessage("x5c leaf certificate's public key");
+
+        (new PackedAttestationVerifier($this->verifiers()))->verify(
+            new AttestationStatement(fmt: 'packed', attStmt: ['alg' => -7, 'sig' => 'x', 'x5c' => ['not a certificate']]),
+            $this->ecAuthenticatorData(),
+            'client-data-hash',
+        );
+    }
+
+    public function test_rejects_full_attestation_with_an_unsupported_algorithm(): void
+    {
+        [, $der] = $this->certificate();
+
+        $this->expectException(AttestationVerificationException::class);
+        $this->expectExceptionMessage('Unsupported COSE algorithm for full attestation: -8');
+
+        (new PackedAttestationVerifier($this->verifiers()))->verify(
+            new AttestationStatement(fmt: 'packed', attStmt: ['alg' => -8, 'sig' => 'x', 'x5c' => [$der]]),
+            $this->ecAuthenticatorData(),
+            'client-data-hash',
+        );
+    }
+
+    public function test_rejects_a_full_attestation_signature_that_does_not_verify(): void
+    {
+        [$keyPair, $der] = $this->certificate();
+        openssl_sign('some other data', $signature, $keyPair, OPENSSL_ALGO_SHA256);
+
+        $this->expectException(AttestationVerificationException::class);
+        $this->expectExceptionMessage('Full attestation signature verification failed');
+
+        (new PackedAttestationVerifier($this->verifiers()))->verify(
+            new AttestationStatement(fmt: 'packed', attStmt: ['alg' => -7, 'sig' => $signature, 'x5c' => [$der]]),
+            $this->ecAuthenticatorData(),
+            'client-data-hash',
+        );
+    }
 }

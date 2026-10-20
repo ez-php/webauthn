@@ -53,10 +53,19 @@ final class TpmAttestationVerifier implements AttestationStatementVerifierInterf
             throw new AttestationVerificationException('"tpm" attestation requires attested credential data.');
         }
 
-        $pubArea = TpmtPublicParser::parse($pubAreaBytes);
+        try {
+            $pubArea = TpmtPublicParser::parse($pubAreaBytes);
+        } catch (\InvalidArgumentException $e) {
+            throw new AttestationVerificationException('"tpm" attestation could not parse pubArea: ' . $e->getMessage(), previous: $e);
+        }
+
         $this->assertPubAreaMatchesCredential($pubArea, $credentialKey);
 
-        $certInfo = TpmsAttestParser::parse($certInfoBytes);
+        try {
+            $certInfo = TpmsAttestParser::parse($certInfoBytes);
+        } catch (\InvalidArgumentException $e) {
+            throw new AttestationVerificationException('"tpm" attestation could not parse certInfo: ' . $e->getMessage(), previous: $e);
+        }
 
         if ($certInfo->magic !== self::TPM_GENERATED_VALUE) {
             throw new AttestationVerificationException('TPMS_ATTEST magic does not match TPM_GENERATED_VALUE.');

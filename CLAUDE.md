@@ -445,6 +445,11 @@ src/
   extension-value format (see those files' comments) since PHP's exact
   behavior for non-standard certificate extensions isn't officially
   documented.
+- Every rejection branch of an attestation verifier has its own test, built from a valid synthetic
+  attestation with exactly one part broken and asserting the exception message (`tpm`, `packed` and
+  `android-safetynet` are at full line coverage bar one unreachable SafetyNet branch). Parser failures
+  (`\InvalidArgumentException` from `AuthenticatorData`, `TpmtPublicParser`, `TpmsAttestParser`) must
+  surface as `AttestationVerificationException`, never untranslated.
 - No MySQL/Redis/Docker services required — pure computation, no I/O.
 - `SecondFactorAssertionVerifierTest` reuses `AssertionCeremonyTest`'s real-key-material fixture builders and asserts the same success/failure cases now report `SecondFactorResult::Satisfied`/`NotSatisfied` instead of a return value/exception pair.
 
@@ -458,4 +463,4 @@ src/
 | Session or cookie-based challenge storage | The consuming application, via `ChallengeStoreInterface` |
 | Credential persistence (database, ORM) | The consuming application, via `CredentialRepositoryInterface` |
 | TOTP / one-time-password 2FA | `ez-php/two-factor` — bridged only via the shared `EzPhp\Contracts\SecondFactorResult` outcome type, not merged |
-| Live attestation root-CA trust validation / metadata service lookups | Out of scope for this module entirely (no network calls) |
+| Live attestation root-CA trust validation / metadata service lookups | `ez-php/webauthn-metadata` (FIDO MDS3 trust-anchor lookups) — this module makes no network calls |
