@@ -319,6 +319,33 @@ src/
     ├── SignatureVerificationException.php
     ├── UnknownAttestationFormatException.php
     └── SignatureCounterException.php
+
+tests/
+├── TestCase.php                                  — Base PHPUnit test case (identical in every package)
+├── RegistrationCeremonyTest.php                  — none attestation → credential source; RP id hash mismatch; missing user-presence flag
+├── AssertionCeremonyTest.php                     — valid assertion + sign-count update; non-increasing counter; foreign user handle; bad signature
+├── SecondFactorAssertionVerifierTest.php         — Satisfied / NotSatisfied (bad signature, unknown credential)
+├── AuthenticatorDataTest.php                     — flags/sign count, attested credential data, truncation, credential-id length cap
+├── ChallengeTest.php                             — 16-byte minimum
+├── ClientDataValidatorTest.php                   — type, origin allow-list, expired challenge, malformed JSON
+├── Asn1/Asn1ReaderTest.php                       — short/long-form TLV, SEQUENCE elements, wrong outer tag, truncation
+├── Cbor/CborDecoderTest.php                      — every major type used by WebAuthn, length/count overflow guards
+├── Cose/CoseKeyTest.php                          — ES256 key parsing, missing alg, curve and RSA size limits for PEM export
+├── Cose/Verifier/Es256VerifierTest.php           — valid / tampered signature
+├── Cose/Verifier/Rs256VerifierTest.php           — valid / invalid signature
+├── Cose/Verifier/EdDsaVerifierTest.php           — valid Ed25519 / signature from another key
+├── Tpm/TpmsAttestParserTest.php                  — TPMS_ATTEST parsing, every truncation rejected, name and extraData bounds
+├── Tpm/TpmtPublicParserTest.php                  — RSA/ECC TPMT_PUBLIC parsing, non-null symmetric/scheme/KDF and curve rejections
+└── AttestationStatement/
+    ├── AttestationResultTest.php                 — trust flag and type exposure
+    ├── AttestationStatementVerifierRegistryTest.php — dispatch by fmt, unknown format
+    ├── NoneAttestationVerifierTest.php           — empty statement accepted, non-empty rejected
+    ├── PackedAttestationVerifierTest.php         — self and x5c (ES256/RS256) attestation, missing alg/sig, bad x5c, algorithm mismatch
+    ├── FidoU2fAttestationVerifierTest.php        — valid U2F, bad signature, wrapped parse failure
+    ├── TpmAttestationVerifierTest.php            — valid TPM (incl. default RSA exponent); one rejection test per check in verify()
+    ├── AndroidKeyAttestationVerifierTest.php     — valid, challenge mismatch, bad signature (real key material)
+    ├── AndroidSafetynetAttestationVerifierTest.php — valid JWS, nonce/host/x5c/algorithm/segment rejections
+    └── AppleAttestationVerifierTest.php          — valid, nonce mismatch, wrapped parse failure (real key material)
 ```
 
 ---
