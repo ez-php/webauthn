@@ -340,7 +340,7 @@ tests/
     ├── AttestationResultTest.php                 — trust flag and type exposure
     ├── AttestationStatementVerifierRegistryTest.php — dispatch by fmt, unknown format
     ├── NoneAttestationVerifierTest.php           — empty statement accepted, non-empty rejected
-    ├── PackedAttestationVerifierTest.php         — self and x5c (ES256/RS256) attestation, missing alg/sig, bad x5c, algorithm mismatch
+    ├── PackedAttestationVerifierTest.php         — self and x5c (ES256/RS256/EdDSA) attestation, alg/key-type mismatch, missing alg/sig, bad x5c, algorithm mismatch
     ├── FidoU2fAttestationVerifierTest.php        — valid U2F, bad signature, wrapped parse failure
     ├── TpmAttestationVerifierTest.php            — valid TPM (incl. default RSA exponent); one rejection test per check in verify()
     ├── AndroidKeyAttestationVerifierTest.php     — valid, challenge mismatch, bad signature (real key material)
@@ -426,13 +426,15 @@ tests/
   "no heavy dependencies, check stdlib first," `Cbor\CborDecoder` is scoped
   to exactly the CBOR major types WebAuthn authenticators emit, not a
   general-purpose implementation.
-- **Packed full-attestation is ES256/RS256 only.** EdDSA (COSE -8) full
-  attestation via an x5c certificate is not supported in Phase 1 —
-  `openssl_verify()` cannot verify Ed25519 signatures directly, and
-  supporting it would require parsing the certificate's raw public key
-  bytes out-of-band. Self-attestation (no x5c) already supports EdDSA via
-  `EdDsaVerifier`. A `AttestationVerificationException` is thrown for an
-  EdDSA full-attestation attempt rather than silently mis-verifying it.
+- **Packed full attestation: ES256/RS256 via `openssl_verify()`, EdDSA via
+  libsodium.** `openssl_verify()` cannot be relied on for Ed25519 across
+  PHP/OpenSSL builds, so for COSE -8 the raw 32-byte key is cut from the leaf
+  certificate's SubjectPublicKeyInfo (fixed 44-byte RFC 8410 layout, OID
+  1.3.101.112 — anything else is "not Ed25519") and checked by `EdDsaVerifier`,
+  the same path self-attestation uses. The statement's `alg` and the
+  certificate's key type must agree both ways: `-8` with a non-Ed25519
+  certificate, or an Ed25519 certificate with `-7`/`-257`, throws rather than
+  verifying under the wrong scheme.
 - **Phase 2 trusted-vs-signature-verified semantics.** Every verifier
   (Phase 1 and Phase 2 alike) confirms the signature/structural binding is
   cryptographically valid for the *presented* certificate/key — none of

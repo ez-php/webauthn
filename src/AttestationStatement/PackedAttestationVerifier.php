@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace EzPhp\WebAuthn\AttestationStatement;
 
 use EzPhp\WebAuthn\AuthenticatorData;
+use EzPhp\WebAuthn\Cose\CoseKey;
 use EzPhp\WebAuthn\Cose\SignatureVerifierInterface;
+use EzPhp\WebAuthn\Cose\Verifier\EdDsaVerifier;
 use EzPhp\WebAuthn\Exception\AttestationVerificationException;
 
 /**
@@ -86,6 +88,12 @@ final class PackedAttestationVerifier implements AttestationStatementVerifierInt
         return new AttestationResult(trusted: false, attestationType: 'self');
     }
 
+    /**
+     * Ed25519 SubjectPublicKeyInfo header (RFC 8410): SEQUENCE { SEQUENCE { OID 1.3.101.112 }, BIT STRING (33 bytes) }.
+     * The 32-byte raw key follows; the whole DER structure is always 44 bytes.
+     */
+    private const string ED25519_SPKI_PREFIX = "\x30\x2a\x30\x05\x06\x03\x2b\x65\x70\x03\x21\x00";
+
     private function verifyFullAttestation(int $algorithm, string $signature, string $signedData, string $leafCertificateDer): AttestationResult
     {
         $pem = "-----BEGIN CERTIFICATE-----\n" . chunk_split(base64_encode($leafCertificateDer), 64, "\n") . "-----END CERTIFICATE-----\n";
@@ -93,6 +101,12 @@ final class PackedAttestationVerifier implements AttestationStatementVerifierInt
 
         if ($publicKey === false) {
             throw new AttestationVerificationException('Could not read the x5c leaf certificate\'s public key.');
+        }
+
+        $ed25519Key = self::ed25519RawKey($publicKey);
+
+        if ($algorithm === -8 || $ed25519Key !== null) {
+            return $this->verifyEdDsaFullAttestation($algorithm, $signature, $signedData, $ed25519Key);
         }
 
         $digestAlgorithm = match ($algorithm) {
@@ -108,5 +122,44 @@ final class PackedAttestationVerifier implements AttestationStatementVerifierInt
         }
 
         return new AttestationResult(trusted: true, attestationType: 'basic');
+    }
+
+    /**
+     * EdDSA full attestation: openssl_verify() is not used for Ed25519 (not available
+     * on every PHP/OpenSSL build), so the raw key is taken from the certificate's
+     * SPKI and checked with libsodium through EdDsaVerifier, as self-attestation does.
+     * The statement's alg and the certificate's key type must agree in both directions.
+     */
+    private function verifyEdDsaFullAttestation(int $algorithm, string $signature, string $signedData, ?string $rawKey): AttestationResult
+    {
+        if ($algorithm !== -8 || $rawKey === null) {
+            throw new AttestationVerificationException(
+                "Full attestation algorithm {$algorithm} does not match the x5c leaf certificate's key type.",
+            );
+        }
+
+        $coseKey = new CoseKey(algorithm: -8, parameters: [1 => 1, 3 => -8, -1 => 6, -2 => $rawKey]);
+
+        if (!(new EdDsaVerifier())->verify($coseKey, $signedData, $signature)) {
+            throw new AttestationVerificationException('Full attestation signature verification failed.');
+        }
+
+        return new AttestationResult(trusted: true, attestationType: 'basic');
+    }
+
+    /**
+     * The certificate's raw 32-byte Ed25519 public key, or null for any other key type.
+     */
+    private static function ed25519RawKey(\OpenSSLAsymmetricKey $publicKey): ?string
+    {
+        $details = openssl_pkey_get_details($publicKey);
+        $pem = is_array($details) && is_string($details['key'] ?? null) ? $details['key'] : '';
+        $spki = base64_decode((string) preg_replace('/-----[^-]+-----|\s+/', '', $pem), true);
+
+        if (!is_string($spki) || strlen($spki) !== 44 || !str_starts_with($spki, self::ED25519_SPKI_PREFIX)) {
+            return null;
+        }
+
+        return substr($spki, 12);
     }
 }

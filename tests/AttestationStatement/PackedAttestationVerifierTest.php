@@ -269,10 +269,10 @@ final class PackedAttestationVerifierTest extends TestCase
         [, $der] = $this->certificate();
 
         $this->expectException(AttestationVerificationException::class);
-        $this->expectExceptionMessage('Unsupported COSE algorithm for full attestation: -8');
+        $this->expectExceptionMessage('Unsupported COSE algorithm for full attestation: -35');
 
         (new PackedAttestationVerifier($this->verifiers()))->verify(
-            new AttestationStatement(fmt: 'packed', attStmt: ['alg' => -8, 'sig' => 'x', 'x5c' => [$der]]),
+            new AttestationStatement(fmt: 'packed', attStmt: ['alg' => -35, 'sig' => 'x', 'x5c' => [$der]]),
             $this->ecAuthenticatorData(),
             'client-data-hash',
         );
@@ -285,6 +285,93 @@ final class PackedAttestationVerifierTest extends TestCase
 
         $this->expectException(AttestationVerificationException::class);
         $this->expectExceptionMessage('Full attestation signature verification failed');
+
+        (new PackedAttestationVerifier($this->verifiers()))->verify(
+            new AttestationStatement(fmt: 'packed', attStmt: ['alg' => -7, 'sig' => $signature, 'x5c' => [$der]]),
+            $this->ecAuthenticatorData(),
+            'client-data-hash',
+        );
+    }
+
+    /**
+     * A self-signed Ed25519 certificate plus the libsodium secret key of the same key pair.
+     *
+     * @return array{non-empty-string, string} [secret key, certificate DER]
+     */
+    private function ed25519Certificate(): array
+    {
+        $keyPair = openssl_pkey_new(['private_key_type' => OPENSSL_KEYTYPE_ED25519]);
+        self::assertNotFalse($keyPair);
+        $details = openssl_pkey_get_details($keyPair);
+        self::assertIsArray($details);
+        /** @var array{ed25519: array{priv_key: non-empty-string}} $details */
+        /** @var non-empty-string $secretKey */
+        $secretKey = sodium_crypto_sign_secretkey(sodium_crypto_sign_seed_keypair($details['ed25519']['priv_key']));
+
+        $csr = openssl_csr_new(['commonName' => 'Test Authenticator'], $keyPair, ['digest_alg' => 'null']);
+        self::assertInstanceOf(\OpenSSLCertificateSigningRequest::class, $csr);
+        $cert = openssl_csr_sign($csr, null, $keyPair, 1, ['digest_alg' => 'null']);
+        self::assertNotFalse($cert);
+        openssl_x509_export($cert, $certPem);
+        self::assertIsString($certPem);
+        $der = base64_decode(str_replace(['-----BEGIN CERTIFICATE-----', '-----END CERTIFICATE-----', "\n"], '', $certPem), strict: true);
+        self::assertIsString($der);
+
+        return [$secretKey, $der];
+    }
+
+    public function test_verifies_eddsa_full_attestation_via_x5c(): void
+    {
+        [$secretKey, $der] = $this->ed25519Certificate();
+        $authenticatorData = $this->ecAuthenticatorData();
+        $signature = sodium_crypto_sign_detached($authenticatorData . 'client-data-hash', $secretKey);
+
+        $result = (new PackedAttestationVerifier($this->verifiers()))->verify(
+            new AttestationStatement(fmt: 'packed', attStmt: ['alg' => -8, 'sig' => $signature, 'x5c' => [$der]]),
+            $authenticatorData,
+            'client-data-hash',
+        );
+
+        self::assertSame('basic', $result->attestationType);
+        self::assertTrue($result->trusted);
+    }
+
+    public function test_rejects_an_eddsa_full_attestation_signature_that_does_not_verify(): void
+    {
+        [$secretKey, $der] = $this->ed25519Certificate();
+        $signature = sodium_crypto_sign_detached('some other data', $secretKey);
+
+        $this->expectException(AttestationVerificationException::class);
+        $this->expectExceptionMessage('Full attestation signature verification failed');
+
+        (new PackedAttestationVerifier($this->verifiers()))->verify(
+            new AttestationStatement(fmt: 'packed', attStmt: ['alg' => -8, 'sig' => $signature, 'x5c' => [$der]]),
+            $this->ecAuthenticatorData(),
+            'client-data-hash',
+        );
+    }
+
+    public function test_rejects_eddsa_alg_with_a_non_ed25519_certificate(): void
+    {
+        [, $der] = $this->certificate();
+
+        $this->expectException(AttestationVerificationException::class);
+        $this->expectExceptionMessage("Full attestation algorithm -8 does not match the x5c leaf certificate's key type");
+
+        (new PackedAttestationVerifier($this->verifiers()))->verify(
+            new AttestationStatement(fmt: 'packed', attStmt: ['alg' => -8, 'sig' => str_repeat('x', 64), 'x5c' => [$der]]),
+            $this->ecAuthenticatorData(),
+            'client-data-hash',
+        );
+    }
+
+    public function test_rejects_an_ed25519_certificate_with_a_non_eddsa_alg(): void
+    {
+        [$secretKey, $der] = $this->ed25519Certificate();
+        $signature = sodium_crypto_sign_detached($this->ecAuthenticatorData() . 'client-data-hash', $secretKey);
+
+        $this->expectException(AttestationVerificationException::class);
+        $this->expectExceptionMessage("Full attestation algorithm -7 does not match the x5c leaf certificate's key type");
 
         (new PackedAttestationVerifier($this->verifiers()))->verify(
             new AttestationStatement(fmt: 'packed', attStmt: ['alg' => -7, 'sig' => $signature, 'x5c' => [$der]]),
